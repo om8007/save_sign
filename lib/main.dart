@@ -8,6 +8,19 @@ import 'package:path_provider/path_provider.dart';
 import 'package:simple_permissions/simple_permissions.dart';
 
 const directoryName = 'Signature';
+List<Color> colorList = [
+  Colors.indigo,
+  Colors.blue,
+  Colors.green,
+  Colors.yellow,
+  Colors.orange,
+  Colors.red
+];
+GlobalKey<_ColorChoserState> colorChoserKey = GlobalKey();
+Color backgroundColor = Colors.white;
+Color penColor = Colors.blue;
+bool showSendFAB = false;
+bool showColorSelector = true;
 
 void main() {
   runApp(MaterialApp(
@@ -32,6 +45,7 @@ class SignAppState extends State<SignApp> {
   @override
   void initState() {
     super.initState();
+    // SystemChrome.setEnabledSystemUIOverlays([]);  // hide status bar and bottom button bar
     initPlatformState();
   }
 
@@ -59,24 +73,53 @@ class SignAppState extends State<SignApp> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Signature(key: signatureKey),
-      persistentFooterButtons: <Widget>[
-        FlatButton(
-          child: Text('Clear'),
+      floatingActionButton: Visibility(
+        visible: showSendFAB,
+        child: FloatingActionButton(
+          key: ValueKey(2),
+          shape: CircleBorder(
+            side: BorderSide(
+                color: backgroundColor == Colors.white
+                    ? Colors.grey
+                    : Colors.white,
+                width: 3.0),
+          ),
+          child: Icon(Icons.save),
           onPressed: () {
-            signatureKey.currentState.clearPoints();
-          },
-        ),
-        FlatButton(
-          child: Text('Save'),
-          onPressed: () {
-            // Future will resolve later
-            // so setState @image here and access in #showImage
-            // to avoid @null Checks
+            print('Send');
             setRenderedImage(context);
           },
-        )
-      ],
+        ),
+      ),
+      body: Stack(
+        children: <Widget>[
+          Signature(key: signatureKey),
+          ColorChoser(key: UniqueKey()),
+          SafeArea(
+            child: ButtonBar(children: <Widget>[
+              IconButton(
+                iconSize: 35,
+                icon: CircleAvatar(
+                    backgroundColor: Colors.grey[300],
+                    child: Icon(Icons.undo)),
+                onPressed: () => signatureKey.currentState.clearPoints(),
+              ),
+              IconButton(
+                iconSize: 35,
+                icon: CircleAvatar(
+                    backgroundColor: Colors.grey[300],
+                    child: Icon(Icons.done)),
+                onPressed: () {
+                  setState(() {
+                    showSendFAB = true;
+                    showColorSelector = false;
+                  });
+                },
+              ),
+            ]),
+          )
+        ],
+      ),
     );
   }
 
@@ -105,7 +148,7 @@ class SignAppState extends State<SignApp> {
         builder: (BuildContext context) {
           return AlertDialog(
             title: Text(
-              'Please check your device\'s Signature folder',
+              'Saved at $path/$directoryName/${formattedDate()}.png',
               style: TextStyle(
                   fontFamily: 'Roboto',
                   fontWeight: FontWeight.w300,
@@ -119,19 +162,8 @@ class SignAppState extends State<SignApp> {
 
   String formattedDate() {
     DateTime dateTime = DateTime.now();
-    String dateTimeString = 'Signature_' +
-        dateTime.year.toString() +
-        dateTime.month.toString() +
-        dateTime.day.toString() +
-        dateTime.hour.toString() +
-        ':' +
-        dateTime.minute.toString() +
-        ':' +
-        dateTime.second.toString() +
-        ':' +
-        dateTime.millisecond.toString() +
-        ':' +
-        dateTime.microsecond.toString();
+    String dateTimeString = 'Signature_' + dateTime.toIso8601String();
+
     return dateTimeString;
   }
 
@@ -149,6 +181,56 @@ class SignAppState extends State<SignApp> {
   getPermissionStatus() async {
     final result = await SimplePermissions.getPermissionStatus(_permission);
     print("permission status is " + result.toString());
+  }
+}
+
+class ColorChoser extends StatefulWidget {
+  const ColorChoser({
+    Key key,
+  }) : super(key: key);
+
+  @override
+  _ColorChoserState createState() => _ColorChoserState();
+}
+
+class _ColorChoserState extends State<ColorChoser> {
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      key: ValueKey(1),
+      alignment: Alignment.bottomCenter,
+      child: Visibility(
+        visible: showColorSelector,
+        child: Container(
+          height: 70,
+          child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: colorList.length,
+              itemBuilder: (context, index) {
+                return InkWell(
+                  onTap: () {
+                    setState(() {
+                      // backgroundColor = Colors.blue[index * 100];
+                      penColor = colorList[index];
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(4.0),
+                    child: CircleAvatar(
+                      backgroundColor: Colors.grey,
+                      child: Padding(
+                        padding: const EdgeInsets.all(3.0),
+                        child: CircleAvatar(
+                          backgroundColor: colorList[index],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+        ),
+      ),
+    );
   }
 }
 
@@ -196,9 +278,17 @@ class SignatureState extends State<Signature> {
               _points = new List.from(_points)..add(_locationPoints);
             });
           },
+          onPanStart: (details) {
+            setState(() {
+              showColorSelector = false;
+              showSendFAB = false;
+            });
+          },
           onPanEnd: (DragEndDetails details) {
             setState(() {
               _points.add(null);
+              // showColorSelector = true;
+              // showSendFAB = true;
             });
           },
           child: CustomPaint(
@@ -231,13 +321,13 @@ class SignaturePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     var paint = Paint()
-      ..color = Colors.blue
-      ..strokeCap = StrokeCap.square
+      ..color = penColor
+      ..strokeCap = StrokeCap.round
       ..strokeWidth = 5.0;
 
     var backgroundPaint = Paint()
-    ..color = Colors.greenAccent
-    ..strokeWidth = 100;
+      ..color = backgroundColor
+      ..strokeWidth = 100;
     canvas.drawPaint(backgroundPaint);
 
     for (int i = 0; i < points.length - 1; i++) {
