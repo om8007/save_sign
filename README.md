@@ -1,6 +1,12 @@
 # save_sign
 
-A new Flutter project.
+A new Flutter project for saving signature as png Image file.
+
+# Objective
+- Show color choser and button group (undo, done buttons) by default.
+- On selecting a pen color from colorchoser, the pen color should change.
+- On clicking done button, save FAButton will be visible and canvas will be freezed for further drawings.
+- After saving image on FAB click, canvas will start drawing and color choser be also visible. 
 
 ## Getting Started
 
